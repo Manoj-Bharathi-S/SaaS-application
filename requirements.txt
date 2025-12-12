@@ -1,6 +1,9 @@
 fastapi
 uvicorn
-pycryptodome
 requests
-pytest
+pycryptodome
 httpx
+scikit-learn
+pandas
+joblib
+numpy
