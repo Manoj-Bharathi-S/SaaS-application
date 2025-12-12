@@ -1,0 +1,6 @@
+fastapi
+uvicorn
+pycryptodome
+requests
+pytest
+httpx
