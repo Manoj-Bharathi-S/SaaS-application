@@ -60,12 +60,12 @@ class WrapRequest(BaseModel):
 
 @app.post("/wrap_key/ibe")
 def wrap_ibe(req: WrapRequest):
-    if req.key_id not in crypto.KEY_STORE:
+    try:
+        key_bytes = crypto.get_key_from_kms(req.key_id)
+        wrapped = wrappers.ibe_wrap_key(key_bytes, req.identity)
+        return {"wrapped": wrapped, "key_id": req.key_id}
+    except ValueError:
         raise HTTPException(status_code=404, detail="Key not found")
-    
-    key_bytes = crypto.KEY_STORE[req.key_id]
-    wrapped = wrappers.ibe_wrap_key(key_bytes, req.identity)
-    return {"wrapped": wrapped, "key_id": req.key_id}
 
 if __name__ == "__main__":
     import uvicorn

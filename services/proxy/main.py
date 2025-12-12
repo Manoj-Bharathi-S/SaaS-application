@@ -10,6 +10,11 @@ from services.proxy import reencryption
 
 app = FastAPI(title="Proxy Service")
 
+@app.on_event("startup")
+def startup():
+    from services.proxy import db
+    db.init_db()
+
 @app.get("/health")
 def health():
     return {"status": "ok"}
@@ -34,4 +39,12 @@ def reencrypt_ep(req: ReEncryptRequest):
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8002)
+    import argparse
+    
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--port", type=int, default=8002)
+    parser.add_argument("--id", type=str, default="proxy_1")
+    args = parser.parse_args()
+    
+    print(f"Starting Proxy Service {args.id} on port {args.port}")
+    uvicorn.run(app, host="0.0.0.0", port=args.port)

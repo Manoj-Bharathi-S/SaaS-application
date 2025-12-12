@@ -1,27 +1,36 @@
 import base64
+import requests
 from Crypto.Cipher import AES
 from Crypto.Random import get_random_bytes
 
-# In-memory "Key Management" for Phase 1 MVI
-# Stores key_id -> bytes
-KEY_STORE = {}
+KMS_URL = "http://localhost:8005"
 
-def generate_aes_key(key_len=32):
-    return get_random_bytes(key_len)
+def get_key_from_kms(key_id: str) -> bytes:
+    try:
+        resp = requests.post(f"{KMS_URL}/get_key", json={"key_id": key_id}, timeout=2)
+        resp.raise_for_status()
+        key_b64 = resp.json()["key_bytes_b64"]
+        return base64.b64decode(key_b64)
+    except Exception as e:
+        raise ValueError(f"Failed to fetch key from KMS: {e}")
+
+def create_key_in_kms() -> str:
+    try:
+        resp = requests.post(f"{KMS_URL}/generate_key", json={"key_len": 32}, timeout=2)
+        resp.raise_for_status()
+        return resp.json()["key_id"]
+    except Exception as e:
+        raise ValueError(f"Failed to generate key in KMS: {e}")
 
 def encrypt_data(data: bytes, key_id: str = None) -> dict:
     """
     Encrypts data using AES-GCM.
-    If key_id is None, generates a new key.
-    Stores the key in global KEY_STORE for MVI.
+    Uses KMS to generate or fetch keys.
     """
-    if key_id and key_id in KEY_STORE:
-        key = KEY_STORE[key_id]
-    else:
-        key = generate_aes_key()
-        if not key_id:
-            key_id = f"k_{base64.urlsafe_b64encode(get_random_bytes(6)).decode().strip('=')}"
-        KEY_STORE[key_id] = key
+    if not key_id:
+        key_id = create_key_in_kms()
+    
+    key = get_key_from_kms(key_id)
 
     cipher = AES.new(key, AES.MODE_GCM)
     ciphertext, tag = cipher.encrypt_and_digest(data)
@@ -36,12 +45,9 @@ def encrypt_data(data: bytes, key_id: str = None) -> dict:
 def decrypt_data(encrypted_payload: dict, key_id: str) -> bytes:
     """
     Decrypts data using AES-GCM.
-    Expects encrypted_payload to contain nonce, ciphertext, tag.
+    Fetches key from KMS.
     """
-    if key_id not in KEY_STORE:
-        raise ValueError(f"Key {key_id} not found")
-
-    key = KEY_STORE[key_id]
+    key = get_key_from_kms(key_id)
     
     nonce = base64.b64decode(encrypted_payload['nonce'])
     ciphertext = base64.b64decode(encrypted_payload['ciphertext'])
