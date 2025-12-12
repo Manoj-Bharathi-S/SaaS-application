@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException, Body
+from fastapi import FastAPI, UploadFile, HTTPException, BackgroundTasks, Body
 from pydantic import BaseModel
 import base64
 import sys
@@ -17,7 +17,7 @@ def health():
     return {"status": "ok"}
 
 @app.post("/encrypt", response_model=EncryptResponse)
-def encrypt(req: EncryptRequest):
+def encrypt(req: EncryptRequest, background_tasks: BackgroundTasks):
     try:
         data = base64.b64decode(req.plaintext)
         result = crypto.encrypt_data(data)
@@ -26,8 +26,16 @@ def encrypt(req: EncryptRequest):
         # Format: nonce|ciphertext|tag (all base64)
         combined_cipher = f"{result['nonce']}|{result['ciphertext']}|{result['tag']}"
         
+        cid = f"c_{base64.urlsafe_b64encode(os.urandom(4)).decode().strip('=')}"
+        
+        # Log to Blockchain
+        owner = req.meta.get("owner", "unknown") if req.meta else "unknown"
+        file_id = req.meta.get("file_id", "unknown") if req.meta else "unknown"
+        
+        background_tasks.add_task(crypto.log_event, owner, "ENC_FILE", file_id, {"key_id": result['key_id'], "cid": cid})
+        
         return EncryptResponse(
-            cipher_id=f"c_{base64.urlsafe_b64encode(os.urandom(4)).decode().strip('=')}",
+            cipher_id=cid,
             cipher=base64.b64encode(combined_cipher.encode()).decode(), # Return as one blob
             key_id=result['key_id']
         )

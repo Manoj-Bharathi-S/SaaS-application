@@ -2,8 +2,21 @@ import base64
 import requests
 from Crypto.Cipher import AES
 from Crypto.Random import get_random_bytes
+from fastapi import BackgroundTasks
 
 KMS_URL = "http://localhost:8005"
+BLOCKCHAIN_URL = "http://localhost:8006"
+
+def log_event(user: str, action: str, file_id: str, details: dict):
+    try:
+        requests.post(f"{BLOCKCHAIN_URL}/tx", json={
+            "user": user,
+            "action": action,
+            "file_id": file_id,
+            "details": details
+        }, timeout=1)
+    except:
+        pass # Fire and forget failure for MVI
 
 def get_key_from_kms(key_id: str) -> bytes:
     try:

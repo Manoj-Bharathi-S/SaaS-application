@@ -1,7 +1,21 @@
 import base64
 import uuid
 import datetime
+import requests
 from services.proxy import db
+
+BLOCKCHAIN_URL = "http://localhost:8006"
+
+def log_event(user: str, action: str, file_id: str, details: dict):
+    try:
+        requests.post(f"{BLOCKCHAIN_URL}/tx", json={
+            "user": user,
+            "action": action,
+            "file_id": file_id,
+            "details": details
+        }, timeout=1)
+    except:
+        pass 
 
 def generate_rekey(from_user: str, to_user: str) -> dict:
     """

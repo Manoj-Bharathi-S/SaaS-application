@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, BackgroundTasks
 import sys
 import os
 
@@ -20,18 +20,26 @@ def health():
     return {"status": "ok"}
 
 @app.post("/gen_rekey", response_model=ReKeyResponse)
-def gen_rekey(req: ReKeyRequest):
-    try:
-        result = reencryption.generate_rekey(req.from_user, req.to_user)
-        return ReKeyResponse(**result)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+def gen_rekey(req: ReKeyRequest, background_tasks: BackgroundTasks):
+    from services.proxy import reencryption
+    result = reencryption.generate_rekey(req.from_user, req.to_user)
+    
+    background_tasks.add_task(reencryption.log_event, req.from_user, "GEN_REKEY", "na", 
+                             {"to": req.to_user, "rk_id": result['rekey_id']})
+    
+    return result
 
 @app.post("/reencrypt", response_model=ReEncryptResponse)
-def reencrypt_ep(req: ReEncryptRequest):
+def reencrypt_proxy(req: ReEncryptRequest, background_tasks: BackgroundTasks):
+    from services.proxy import reencryption
     try:
         new_cipher = reencryption.reencrypt(req.cipher_blob, req.rekey_id)
-        return ReEncryptResponse(cipher_re=new_cipher)
+        
+        # Log event
+        background_tasks.add_task(reencryption.log_event, "proxy", "PROXY_REENC", "unknown", 
+                                 {"rk_id": req.rekey_id})
+                                 
+        return {"cipher_re": new_cipher}
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
