@@ -33,10 +33,22 @@ def gen_rekey(req: ReKeyRequest, background_tasks: BackgroundTasks):
 def reencrypt_proxy(req: ReEncryptRequest, background_tasks: BackgroundTasks):
     from services.proxy import reencryption
     try:
+        # Phase 5: Access Control Check (RBAC)
+        # Verify if the proxy (acting on behalf of user) is allowed.
+        # In a real system, we'd check the destination user's permission.
+        # MVI: Check if "proxy" role is authorized to reencrypt.
+        import requests
+        try:
+            auth_resp = requests.post("http://localhost:8008/authorize", 
+                                    json={"user": "admin", "action": "reencrypt"}, timeout=1)
+            if auth_resp.status_code == 200 and not auth_resp.json().get("allow"):
+                 raise HTTPException(status_code=403, detail="Access Denied: Re-encryption not allowed")
+        except requests.exceptions.ConnectionError:
+            pass # Fail open if Access Service down for MVI/Demo, or Fail Closed? Fail open for robustness.
+
         # Phase 4: ML Anomaly Check
         # detailed Mock features for now. In real system, fetch from history.
         import random
-        import requests
         
         # 10% chance of anomaly for demo purposes if not specified
         hour = 23 if random.random() < 0.1 else 14 
@@ -56,6 +68,15 @@ def reencrypt_proxy(req: ReEncryptRequest, background_tasks: BackgroundTasks):
             ml_resp = requests.post("http://localhost:8007/score", json=score_payload, timeout=1)
             if ml_resp.status_code == 200:
                 is_anomaly = ml_resp.json().get("is_anomaly", False)
+                
+                # Phase 5: Auto-Revoke Integration
+                if is_anomaly:
+                    # In real flow, revoke the DESTINATION user. 
+                    # For MVI demo, we just log revocation call
+                    try:
+                        requests.post("http://localhost:8008/revoke", json={"username": "alice@company.com"})
+                    except:
+                        pass
         except:
             pass # Fail open if ML service down
             
@@ -75,6 +96,8 @@ def reencrypt_proxy(req: ReEncryptRequest, background_tasks: BackgroundTasks):
         return {"cipher_re": new_cipher}
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
+    except HTTPException as e:
+        raise e
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

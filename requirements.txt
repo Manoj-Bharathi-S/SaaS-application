@@ -7,3 +7,5 @@ scikit-learn
 pandas
 joblib
 numpy
+streamlit
+pure_eval

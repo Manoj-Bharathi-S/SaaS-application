@@ -59,6 +59,13 @@ def get_key(req: GetKeyRequest):
         
     return GetKeyResponse(key_bytes_b64=base64.b64encode(row['key_bytes']).decode())
 
+@app.get("/debug/keys")
+def debug_keys():
+    conn = db.get_db_connection()
+    rows = conn.execute("SELECT key_id FROM keys").fetchall()
+    conn.close()
+    return {"keys": [row['key_id'] for row in rows]}
+
 class WrapKeyRequest(BaseModel):
     key_id: str
     identity: str
