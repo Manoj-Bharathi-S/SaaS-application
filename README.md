@@ -43,7 +43,29 @@ python demos/start_dashboard.py
 ```
 Open **http://localhost:8501** in your browser.
 
-### 2. Run Verification Tests
+### 2. Using the Dashboard (SaaS Gateway)
+The new SaaS Dashboard allows tenant-based secure file operations:
+
+**Step 1: Sign Up / Login**
+*   Use the **Sidebar** to create a new Tenant (e.g., "MyCompany").
+*   Copy the generated `API Key`.
+*   Paste the API Key in the "Tenant Login" box and click **Login**.
+
+**Step 2: Encrypt a File**
+*   Go to the **"🔒 Secure Files"** tab.
+*   Click **"Browse files"** to select a document to upload.
+*   Click **"Encrypt via Gateway"**.
+*   Click **"Download Encrypted File"** to save the `.enc` file locally.
+
+**Step 3: Decrypt a File**
+*   Go to the **"🔗 Sharing & Access"** tab (or stay on "Secure Files" if verifying self-decryption).
+*   In the **"Inbound Access"** or **Decrypt** section:
+    *   Ensure the **Cipher Blob** is filled (it auto-fills after encryption).
+    *   Ensure the **Key ID** is filled.
+*   Click **"Access Shared File"** (or **"Decrypt File"**).
+*   Click **"Download Decrypted File"** to retrieve your original file.
+
+### 3. Run Verification Tests
 To verify individual components or phases:
 ```bash
 # Verify Phase 4 (ML)
